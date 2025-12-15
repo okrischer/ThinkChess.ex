@@ -89,7 +89,87 @@ defmodule GameTest do
     assert new_game.board["e4"] == ?P
     assert game.turn
     assert not new_game.turn
+    assert new_game.moves == ["e2e4"]
     assert new_game.game_state == :running
     assert new_game.message == ""
+  end
+
+  test "make_move for invalid move creates invalid game_state" do
+    game = Game.new_game()
+    new_game = Game.make_move(game, "e2f4")
+    assert new_game.game_state == :invalid
+    assert new_game.message == "illegal move e2f4"
+    assert new_game.board == game.board
+    assert new_game.turn == game.turn
+  end
+
+  test "legal_moves returns correct moves for pawn" do
+    game = Game.new_game("8/8/8/8/8/3p1p2/4P3/8 - - -")
+    moves = Game.legal_moves(game.board, "e2")
+    assert Enum.sort(moves) == Enum.sort(["e3", "e4", "d3", "f3"])
+
+    game = Game.new_game("8/4p3/3P1P2/8/8/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "e7")
+    assert Enum.sort(moves) == Enum.sort(["e6", "e5", "d6", "f6"])
+  end
+
+  test "legal_moves returns correct moves for knight" do
+    game = Game.new_game("8/8/8/3N4/8/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d5")
+    assert Enum.sort(moves) == Enum.sort(["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"])
+  end
+
+  test "legal_moves returns correct moves for king" do
+    game = Game.new_game("8/8/8/3k4/8/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d5")
+    assert Enum.sort(moves) == Enum.sort(["c4", "c5", "c6", "d4", "d6", "e4", "e5", "e6"])
+  end
+
+  test "legal_moves returns correct moves for rook" do
+    game = Game.new_game("8/8/8/3R4/8/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d5")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a5", "b5", "c5", "d1", "d2", "d3", "d4",
+      "d6", "d7", "d8", "e5", "f5", "g5", "h5"])
+  end
+
+  test "legal_moves for rook with blocks" do
+    game = Game.new_game("8/8/3p4/3R1P2/8/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d5")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a5", "b5", "c5", "d1", "d2", "d3", "d4", "d6", "e5"])
+  end
+
+  test "legal_moves returns correct moves for bishop" do
+    game = Game.new_game("8/8/8/8/3b4/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d4")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a1", "a7", "b2", "b6", "c3", "c5", "e3",
+      "e5", "f2", "f6", "g1", "g7", "h8"])
+  end
+
+  test "legal_moves for bishop with blocks" do
+    game = Game.new_game("8/6p1/8/8/3B4/4P3/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d4")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a1", "a7", "b2", "b6", "c3", "c5", "e5", "f6", "g7"])
+  end
+
+  test "legal_moves returns correct moves for queen" do
+    game = Game.new_game("8/8/8/8/3Q4/8/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d4")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a4", "b4", "c4", "d1", "d2", "d3", "d5", "d6", "d7",
+      "d8", "e4", "f4", "g4", "h4", "a1", "a7", "b2", "b6",
+      "c3", "c5", "e3", "e5", "f2", "f6", "g1", "g7", "h8"])
+  end
+
+  test "legal_moves for queen with blocks" do
+    game = Game.new_game("8/8/8/2pp4/3Q4/4P3/8/8 - - -")
+    moves = Game.legal_moves(game.board, "d4")
+    assert Enum.sort(moves) ==  Enum.sort([
+      "a4", "b4", "c4", "d1", "d2", "d3", "d5",
+      "e4", "f4", "g4", "h4", "a1", "b2",
+      "c3", "c5", "e5", "f6", "g7", "h8"])
   end
 end
