@@ -84,14 +84,23 @@ defmodule GameTest do
 
   test "make_move for valid move creates a valid new game" do
     game = Game.new_game()
-    new_game = Game.make_move(game, "e2e4")
-    assert new_game.board["e2"] == ?.
-    assert new_game.board["e4"] == ?P
-    assert game.turn
-    assert not new_game.turn
-    assert new_game.moves == ["e2e4"]
-    assert new_game.game_state == :running
-    assert new_game.message == ""
+    game = Game.make_move(game, "e2e4")
+    assert game.board["e2"] == ?.
+    assert game.board["e4"] == ?P
+    assert not game.turn
+    assert game.moves == ["e2-e4"]
+    assert game.game_state == :running
+    assert game.message == ""
+
+    game = Game.make_move(game, "d7d5")
+    assert game.board["d7"] == ?.
+    assert game.board["d5"] == ?p
+    assert game.moves == ["d7-d5", "e2-e4"]
+
+    game = Game.make_move(game, "e4d5")
+    assert game.board["e4"] == ?.
+    assert game.board["d5"] == ?P
+    assert game.moves == ["e4xd5", "d7-d5", "e2-e4"]
   end
 
   test "make_move for invalid move creates invalid game_state" do
@@ -171,5 +180,35 @@ defmodule GameTest do
       "a4", "b4", "c4", "d1", "d2", "d3", "d5",
       "e4", "f4", "g4", "h4", "a1", "b2",
       "c3", "c5", "e5", "f6", "g7", "h8"])
+  end
+
+  test "undo_move" do
+    game = Game.new_game()
+    game = Game.make_move(game, "e2e4")
+    game = Game.make_move(game, "d7d5")
+    game = Game.make_move(game, "e4d5")
+    assert game.moves == ["e4xd5", "d7-d5", "e2-e4"]
+    assert game.captured == ~c"p"
+
+    game = Game.undo_move(game)
+    assert game.board["d5"] == ?p
+    assert game.board["e4"] == ?P
+    assert game.moves == ["d7-d5", "e2-e4"]
+    assert game.captured == []
+
+    game = Game.undo_move(game)
+    assert game.board["d5"] == ?.
+    assert game.board["d7"] == ?p
+    assert game.moves == ["e2-e4"]
+    assert game.captured == []
+
+    game = Game.undo_move(game)
+    assert game.board["e4"] == ?.
+    assert game.board["e2"] == ?P
+    assert game.moves == []
+
+    game = Game.undo_move(game)
+    assert game.game_state == :invalid
+    assert game.message == "no more moves to undo"
   end
 end

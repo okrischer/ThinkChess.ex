@@ -8,6 +8,7 @@ defmodule Chess.Game do
     castling: binary,
     passant: binary,
     moves: [binary],
+    captured: [char],
     message: binary,
     game_state: game_state
   }
@@ -34,6 +35,7 @@ defmodule Chess.Game do
       castling: castling,
       passant: passant,
       moves: [],
+      captured: [],
       message: "",
       game_state: :running
     }
@@ -55,11 +57,9 @@ defmodule Chess.Game do
       {:ok, piece} = Map.fetch(game.board, from)
       {:ok, _} = Map.fetch(game.board, to)
       if get_color(piece) == game.turn do
-        if to in legal_moves(game.board, from) do
-          {:ok, move}
-        else
-          {:invalid, "illegal move #{move}"}
-        end
+        if to in legal_moves(game.board, from),
+        do: {:ok, move},
+        else: {:invalid, "illegal move #{move}"}
       else
         {:invalid, "it's not your turn"}
       end
@@ -100,9 +100,43 @@ defmodule Chess.Game do
     {from, to} = String.split_at(uci, 2)
     piece = game.board[from]
     board = %{game.board | from => ?., to => piece}
-    moves = [uci | game.moves]
+    target = game.board[to]
+    capture = target != ?.
+    captured = if capture,
+      do: [target | game.captured],
+      else: game.captured
+    lan = if capture,
+      do: Enum.join([from, to], "x"),
+      else: Enum.join([from, to], "-")
+    moves = [lan | game.moves]
     turn = not game.turn
-    %{game | board: board, turn: turn, moves: moves, message: ""}
+    %{game | board: board,
+      turn: turn,
+      moves: moves,
+      captured: captured,
+      message: "",
+      game_state: :running}
+  end
+
+  @spec undo_move(t) :: t
+  def undo_move(game = %{moves: []}) do
+      %{game | game_state: :invalid, message: "no more moves to undo"}
+  end
+
+  def undo_move(game) do
+    [move | moves] = game.moves
+    capture = String.contains?(move, "x")
+    splitter = if capture, do: "x", else: "-"
+    [from | [to | []]] = String.split(move, splitter)
+    piece = game.board[to]
+    turn = not game.turn
+    case capture do
+      false ->  board = %{game.board | from => piece, to => ?.}
+                %{game | board: board, moves: moves, turn: turn}
+      true  ->  [captured_piece | captured] = game.captured
+                board = %{game.board | from => piece, to => captured_piece}
+                %{game | board: board, moves: moves, turn: turn, captured: captured}
+    end
   end
 
   ################################## private #######################################
@@ -139,7 +173,7 @@ defmodule Chess.Game do
                 r <- delta,
                 {f, r} != {0, 0},
                 do: {f, r}
-    get_valid_squares(args, moves)
+    get_legal_squares(args, moves)
   end
 
   defp knight_move(args) do
@@ -148,7 +182,7 @@ defmodule Chess.Game do
                 r <- delta,
                 abs(f) != abs(r),
                 do: {f, r}
-    get_valid_squares(args, moves)
+    get_legal_squares(args, moves)
   end
 
   defp rook_move(args = {board, square, color}) do
@@ -185,6 +219,7 @@ defmodule Chess.Game do
       |> Enum.filter(fn {{f, r}, p} -> p != ?. and
                                       (f == file or r == rank) and
                                       {f, r} != {file, rank} end)
+
     low_file = blocking
       |> Enum.filter(fn {{f, r}, _} -> r == rank and f < file end)
     low_file = if Enum.empty?(low_file),
@@ -219,6 +254,7 @@ defmodule Chess.Game do
       |> Enum.filter(fn {{f, r}, p} -> p != ?. and
                                       (abs(file - f) == abs(rank - r)) and
                                       {f, r} != {file, rank} end)
+
     for p <- blocking_pieces do
       {{f, r}, _} = p
       cond do
@@ -245,7 +281,7 @@ defmodule Chess.Game do
     |> Enum.filter(fn square -> square in @squares end)
   end
 
-  defp get_valid_squares(_args = {board, square, color}, moves) do
+  defp get_legal_squares(_args = {board, square, color}, moves) do
     {file, rank} = String.to_charlist(square) |> List.to_tuple
     Enum.map(moves, fn {f, r} -> {file + f, rank + r} end)
     |> Enum.map(fn {f, r} -> List.to_string([f, r]) end)
