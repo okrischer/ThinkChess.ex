@@ -182,6 +182,18 @@ defmodule GameTest do
       "c3", "c5", "e5", "f6", "g7", "h8"])
   end
 
+  test "move gives check for black" do
+    game = Game.new_game("4k3/8/8/1N6/B7/8/8/8 w - -")
+    game = Game.make_move(game, "b5d6")
+    assert game.checks == ["a4", "d6"]
+  end
+
+  test "move gives check for white" do
+    game = Game.new_game("8/8/8/b7/1n6/8/8/4K3 b - -")
+    game = Game.make_move(game, "b4d3")
+    assert game.checks == ["a5", "d3"]
+  end
+
   test "undo_move" do
     game = Game.new_game()
     game = Game.make_move(game, "e2e4")

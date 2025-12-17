@@ -9,6 +9,7 @@ defmodule Chess.Game do
     passant: binary,
     moves: [binary],
     captured: [char],
+    checks: [binary],
     message: binary,
     game_state: game_state
   }
@@ -36,6 +37,7 @@ defmodule Chess.Game do
       passant: passant,
       moves: [],
       captured: [],
+      checks: [],
       message: "",
       game_state: :running
     }
@@ -102,18 +104,16 @@ defmodule Chess.Game do
     board = %{game.board | from => ?., to => piece}
     target = game.board[to]
     capture = target != ?.
-    captured = if capture,
-      do: [target | game.captured],
-      else: game.captured
-    lan = if capture,
-      do: Enum.join([from, to], "x"),
-      else: Enum.join([from, to], "-")
+    captured = if capture, do: [target | game.captured], else: game.captured
+    lan = if capture, do: Enum.join([from, to], "x"), else: Enum.join([from, to], "-")
     moves = [lan | game.moves]
     turn = not game.turn
+    checks = get_checks(board, turn)
     %{game | board: board,
       turn: turn,
       moves: moves,
       captured: captured,
+      checks: checks,
       message: "",
       game_state: :running}
   end
@@ -140,6 +140,16 @@ defmodule Chess.Game do
   end
 
   ################################## private #######################################
+
+  defp get_checks(board, turn) do
+    king = Map.filter(board, fn {_k, v} -> v in ~c"Kk" and get_color(v) == turn end)
+      |> Enum.map(fn {square, _v} -> square end)
+    [king | []] = king
+    Map.filter(board, fn {square, piece} -> piece != ?. and
+                                            get_color(piece) == not turn and
+                                            king in legal_moves(board, square) end)
+    |> Enum.map(fn {square, _v} -> square end)
+  end
 
   defp pawn_move(_args  = {board, square, _color = true}) do
     {file, rank} = String.to_charlist(square) |> List.to_tuple
