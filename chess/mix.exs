@@ -21,7 +21,6 @@ defmodule Chess.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:funx, "~> 0.1.7"}
     ]
   end
 end

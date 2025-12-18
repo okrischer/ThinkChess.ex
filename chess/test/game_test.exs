@@ -34,9 +34,13 @@ defmodule GameTest do
 
   test "make_move for finished game doesn't change anything" do
     game = Game.new_game()
-    fin_game = %{game | game_state: :draw}
-    new_game = Game.make_move(fin_game, "testmove")
-    assert new_game == fin_game
+    draw = %{game | game_state: :draw}
+    new_game = Game.make_move(draw, "testmove")
+    assert new_game == draw
+
+    checkmate = %{game | game_state: :checkmate}
+    new_game = Game.make_move(checkmate, "testmove")
+    assert new_game == checkmate
   end
 
   test "check_move recognizes valid move e2e4" do
@@ -79,7 +83,7 @@ defmodule GameTest do
     assert game.turn
     assert not new_game.turn
     assert new_game.game_state == :running
-    assert new_game.message == ""
+    assert new_game.message == "e2-e4"
   end
 
   test "make_move for valid move creates a valid new game" do
@@ -90,7 +94,7 @@ defmodule GameTest do
     assert not game.turn
     assert game.moves == ["e2-e4"]
     assert game.game_state == :running
-    assert game.message == ""
+    assert game.message == "e2-e4"
 
     game = Game.make_move(game, "d7d5")
     assert game.board["d7"] == ?.
@@ -194,6 +198,23 @@ defmodule GameTest do
     assert game.checks == ["a5", "d3"]
   end
 
+  test "make_move detects checkmate" do
+    game = Game.new_game("rnbqk2r/pppp1ppp/5n2/2b1p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w - -")
+    assert game.turn
+    assert game.game_state == :running
+    assert game.moves == []
+    assert game.captured == []
+    assert game.checks == []
+
+    game = Game.make_move(game, "h5f7")
+    assert  not game.turn
+    assert game.game_state == :checkmate
+    assert game.moves == ["h5xf7"]
+    assert game.captured == ~c"p"
+    assert game.checks == ["f7"]
+    assert game.message == "Checkmate! White wins."
+  end
+
   test "undo_move" do
     game = Game.new_game()
     game = Game.make_move(game, "e2e4")
@@ -207,17 +228,20 @@ defmodule GameTest do
     assert game.board["e4"] == ?P
     assert game.moves == ["d7-d5", "e2-e4"]
     assert game.captured == []
+    assert game.message == "move e4xd5 undone"
 
     game = Game.undo_move(game)
     assert game.board["d5"] == ?.
     assert game.board["d7"] == ?p
     assert game.moves == ["e2-e4"]
     assert game.captured == []
+    assert game.message == "move d7-d5 undone"
 
     game = Game.undo_move(game)
     assert game.board["e4"] == ?.
     assert game.board["e2"] == ?P
     assert game.moves == []
+    assert game.message == "move e2-e4 undone"
 
     game = Game.undo_move(game)
     assert game.game_state == :invalid

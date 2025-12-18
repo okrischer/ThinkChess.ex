@@ -1,9 +1,9 @@
 defmodule Chess.Game do
 
-  @type game_state :: :running | :invalid | :white_wins | :black_wins | :draw
+  @type game_state :: :running | :invalid | :checkmate | :draw
 
   @type t :: %{
-    board: map,
+    board: %{binary => char},
     turn: boolean,
     castling: binary,
     passant: binary,
@@ -45,7 +45,7 @@ defmodule Chess.Game do
 
   @spec make_move(t, binary) :: t
   def make_move(game = %{game_state: state}, _move)
-  when state in [:white_wins, :black_wins, :draw], do: game
+  when state in [:checkmate, :draw], do: game
 
   def make_move(game, move) do
     move = check_move(game, move)
@@ -109,13 +109,21 @@ defmodule Chess.Game do
     moves = [lan | game.moves]
     turn = not game.turn
     checks = get_checks(board, turn)
+    game_state = if Enum.empty?(checks) do
+      :running
+    else
+      if checkmate?(board, turn), do: :checkmate, else: :running
+    end
+    message = if game_state == :checkmate,
+      do: "Checkmate! #{if game.turn, do: "White", else: "Black"} wins.",
+      else: lan
     %{game | board: board,
       turn: turn,
       moves: moves,
       captured: captured,
       checks: checks,
-      message: "",
-      game_state: :running}
+      message: message,
+      game_state: game_state}
   end
 
   @spec undo_move(t) :: t
@@ -130,12 +138,18 @@ defmodule Chess.Game do
     [from | [to | []]] = String.split(move, splitter)
     piece = game.board[to]
     turn = not game.turn
-    case capture do
-      false ->  board = %{game.board | from => piece, to => ?.}
-                %{game | board: board, moves: moves, turn: turn}
-      true  ->  [captured_piece | captured] = game.captured
-                board = %{game.board | from => piece, to => captured_piece}
-                %{game | board: board, moves: moves, turn: turn, captured: captured}
+    message = "move #{move} undone"
+    if capture do
+      [captured_piece | captured] = game.captured
+      board = %{game.board | from => piece, to => captured_piece}
+      checks = get_checks(board, turn)
+      %{game | board: board, moves: moves, turn: turn, checks: checks,
+        captured: captured, game_state: :running, message: message}
+    else
+      board = %{game.board | from => piece, to => ?.}
+      checks = get_checks(board, turn)
+      %{game | board: board, moves: moves, turn: turn,
+        checks: checks, game_state: :running, message: message}
     end
   end
 
@@ -149,6 +163,22 @@ defmodule Chess.Game do
                                             get_color(piece) == not turn and
                                             king in legal_moves(board, square) end)
     |> Enum.map(fn {square, _v} -> square end)
+  end
+
+  defp checkmate?(board, turn) do
+    from_squares = Map.filter(board, fn {_k, piece} -> piece != ?. and get_color(piece) == turn end)
+      |> Enum.map(fn {square, _v} -> square end)
+    to_squares = Enum.map(from_squares, fn from -> legal_moves(board, from) end)
+    legal_moves = Enum.zip(from_squares, to_squares)
+      |> Enum.filter(fn {_from, ts} -> not Enum.empty?(ts) end)
+      |> Enum.map(fn {from, ts} -> for to <- ts, do: {from, to} end)
+      |> List.flatten
+    checks = for {from, to} <- legal_moves do
+      piece = board[from]
+      board = %{board | from => ?., to => piece}
+      get_checks(board, turn)
+    end
+    not Enum.any?(checks, fn check -> Enum.empty?(check) end)
   end
 
   defp pawn_move(_args  = {board, square, _color = true}) do
