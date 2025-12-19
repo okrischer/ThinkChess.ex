@@ -1,4 +1,5 @@
 defmodule Chess.Game do
+alias Enum.OutOfBoundsError
 
   @type game_state :: :running | :invalid | :checkmate | :draw
 
@@ -59,9 +60,15 @@ defmodule Chess.Game do
       {:ok, piece} = Map.fetch(game.board, from)
       {:ok, _} = Map.fetch(game.board, to)
       if get_color(piece) == game.turn do
-        if to in legal_moves(game.board, from),
-        do: {:ok, move},
-        else: {:invalid, "illegal move #{move}"}
+        if to in legal_moves(game.board, from) do
+          board = %{game.board | from => ?., to => piece}
+          checks = get_checks(board, game.turn)
+          if Enum.empty?(checks),
+          do: {:ok, move},
+          else: {:invalid, "observe check"}
+        else
+          {:invalid, "illegal move #{move}"}
+        end
       else
         {:invalid, "it's not your turn"}
       end
@@ -156,13 +163,17 @@ defmodule Chess.Game do
   ################################## private #######################################
 
   defp get_checks(board, turn) do
-    king = Map.filter(board, fn {_k, v} -> v in ~c"Kk" and get_color(v) == turn end)
+    try do
+      kings = Map.filter(board, fn {_k, v} -> v in ~c"Kk" and get_color(v) == turn end)
       |> Enum.map(fn {square, _v} -> square end)
-    [king | []] = king
-    Map.filter(board, fn {square, piece} -> piece != ?. and
-                                            get_color(piece) == not turn and
-                                            king in legal_moves(board, square) end)
-    |> Enum.map(fn {square, _v} -> square end)
+      king = Enum.fetch!(kings, 0)
+      Map.filter(board, fn {square, piece} -> piece != ?. and
+                                              get_color(piece) == not turn and
+                                              king in legal_moves(board, square) end)
+      |> Enum.map(fn {square, _v} -> square end)
+    rescue
+      OutOfBoundsError -> []
+    end
   end
 
   defp checkmate?(board, turn) do

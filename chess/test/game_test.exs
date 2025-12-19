@@ -215,6 +215,21 @@ defmodule GameTest do
     assert game.message == "Checkmate! White wins."
   end
 
+  test "make_move detects moves that put own king in check" do
+    game = Game.new_game("8/8/b7/8/8/3Pp3/4K3/8 w - -")
+    game = Game.make_move(game, "e2f2")
+    assert game.game_state == :invalid
+    assert game.message == "observe check"
+
+    game = Game.make_move(game, "d3d4")
+    assert game.game_state == :invalid
+    assert game.message == "observe check"
+
+    game = Game.make_move(game, "e2e3")
+    assert game.game_state == :running
+    assert game.message == "e2xe3"
+  end
+
   test "undo_move" do
     game = Game.new_game()
     game = Game.make_move(game, "e2e4")
