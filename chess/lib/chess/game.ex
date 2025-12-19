@@ -116,14 +116,17 @@ alias Enum.OutOfBoundsError
     moves = [lan | game.moves]
     turn = not game.turn
     checks = get_checks(board, turn)
-    game_state = if Enum.empty?(checks) do
-      :running
-    else
-      if checkmate?(board, turn), do: :checkmate, else: :running
+    mate = mate?(board, turn)
+    game_state = cond do
+      Enum.empty?(checks) and mate -> :draw
+      mate -> :checkmate
+      true -> :running
     end
-    message = if game_state == :checkmate,
-      do: "Checkmate! #{if game.turn, do: "White", else: "Black"} wins.",
-      else: lan
+    message = case game_state do
+      :checkmate -> "Checkmate! #{if game.turn, do: "White", else: "Black"} wins."
+      :draw -> "Stalemate! It's a draw."
+      :running -> lan
+    end
     %{game | board: board,
       turn: turn,
       moves: moves,
@@ -176,7 +179,7 @@ alias Enum.OutOfBoundsError
     end
   end
 
-  defp checkmate?(board, turn) do
+  defp mate?(board, turn) do
     from_squares = Map.filter(board, fn {_k, piece} -> piece != ?. and get_color(piece) == turn end)
       |> Enum.map(fn {square, _v} -> square end)
     to_squares = Enum.map(from_squares, fn from -> legal_moves(board, from) end)

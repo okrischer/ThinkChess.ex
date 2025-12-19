@@ -207,12 +207,36 @@ defmodule GameTest do
     assert game.checks == []
 
     game = Game.make_move(game, "h5f7")
-    assert  not game.turn
+    assert not game.turn
     assert game.game_state == :checkmate
     assert game.moves == ["h5xf7"]
     assert game.captured == ~c"p"
     assert game.checks == ["f7"]
     assert game.message == "Checkmate! White wins."
+  end
+
+  test "make_move detects stalemate" do
+    game = Game.new_game("5k2/5P2/8/5K2/8/8/8/8 w - -")
+    game = Game.make_move(game, "f5f6")
+    assert game.game_state == :draw
+    assert game.message == "Stalemate! It's a draw."
+    assert game.moves == ["f5-f6"]
+
+    game = Game.new_game("kb5R/8/8/K7/8/8/8/8 w - -")
+    game = Game.make_move(game, "a5b6")
+    assert game.game_state == :draw
+
+    game = Game.new_game("8/8/8/1Q4K1/8/8/p7/k7 w - -")
+    game = Game.make_move(game, "b5b3")
+    assert game.game_state == :draw
+
+    game = Game.new_game("k7/P7/K7/8/8/4B3/8/8 w - -")
+    game = Game.make_move(game, "e3f4")
+    assert game.game_state == :draw
+
+    game = Game.new_game("k7/P7/K7/8/8/3B4/8/8 w - -")
+    game = Game.make_move(game, "d3e4")
+    assert game.game_state == :checkmate
   end
 
   test "make_move detects moves that put own king in check" do
