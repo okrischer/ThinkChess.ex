@@ -254,6 +254,16 @@ defmodule GameTest do
     assert game.message == "e2xe3"
   end
 
+  test "pawn promotion" do
+    game = Game.new_game("3r2k1/2P5/2K5/8/8/8/8/8 w - -")
+    game = Game.make_move(game, "c7d8")
+    assert game.game_state == :running
+    assert game.message == "c7xd8Q"
+    assert game.moves == ["c7xd8Q"]
+    assert game.board["d8"] == ?Q
+    assert game.checks == ["d8"]
+  end
+
   test "undo_move" do
     game = Game.new_game()
     game = Game.make_move(game, "e2e4")

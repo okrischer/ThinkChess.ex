@@ -39,7 +39,7 @@ alias Enum.OutOfBoundsError
       moves: [],
       captured: [],
       checks: [],
-      message: "",
+      message: "new game",
       game_state: :running
     }
   end
@@ -108,11 +108,15 @@ alias Enum.OutOfBoundsError
     {:ok, uci} = move
     {from, to} = String.split_at(uci, 2)
     piece = game.board[from]
+    {promotion, piece} = if piece in ~c"Pp",
+      do: promotion(piece, to),
+      else: {false, piece}
     board = %{game.board | from => ?., to => piece}
     target = game.board[to]
     capture = target != ?.
     captured = if capture, do: [target | game.captured], else: game.captured
     lan = if capture, do: Enum.join([from, to], "x"), else: Enum.join([from, to], "-")
+    lan = if promotion, do: lan <> List.to_string([piece]), else: lan
     moves = [lan | game.moves]
     turn = not game.turn
     checks = get_checks(board, turn)
@@ -141,6 +145,7 @@ alias Enum.OutOfBoundsError
       %{game | game_state: :invalid, message: "no more moves to undo"}
   end
 
+  # todo: handle pawn promotion
   def undo_move(game) do
     [move | moves] = game.moves
     capture = String.contains?(move, "x")
@@ -164,6 +169,19 @@ alias Enum.OutOfBoundsError
   end
 
   ################################## private #######################################
+
+  defp promotion(piece, to, promoted \\ ?Q)
+  defp promotion(piece = ?P, to, promoted) do
+    if to in ["a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"],
+      do: {true, promoted},
+      else: {false, piece}
+  end
+
+  defp promotion(piece = ?p, to, promoted) do
+    if to in ["a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"],
+      do: {true, promoted + 32},
+      else: {false, piece}
+  end
 
   defp get_checks(board, turn) do
     try do
